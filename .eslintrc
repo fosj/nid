@@ -1,0 +1,50 @@
+{
+  "extends": [
+    "airbnb-base"
+  ],
+  "env": {
+    "node": true,
+    "jest": true
+  },
+  "rules": {
+    "import/no-extraneous-dependencies": [
+      "error", {
+        "devDependencies": [
+          "**/**.spec.js"
+        ]
+      }
+    ],
+    "linebreak-style": "off",
+    "max-len": [
+      "error",
+      200,
+      2,
+      {
+        "ignoreUrls": true,
+        "ignoreComments": false
+      }
+    ],
+    "no-console": "off",
+    "no-multiple-empty-lines": [
+      "error",
+      {
+        "max": 1,
+        "maxEOF": 1
+      }
+    ],
+    "no-restricted-syntax": [
+      "error",
+      "ForInStatement",
+      "LabeledStatement",
+      "WithStatement"
+    ],
+    "object-curly-newline": [
+      "error",
+      {
+        "consistent": true,
+        "minProperties": 7,
+        "multiline": true
+      }
+    ]
+  }
+}
