@@ -1,0 +1,45 @@
+version: '3.7'
+
+x-common-variables: &common-variables
+  MINIO_ACCESS_KEY: mpUvdqn4VpkHyo8
+  MINIO_SECRET_KEY: FjI124f5er7PkKFsn0UkkfSd
+
+services:
+  minio:
+    image: minio/minio
+    ports:
+      - 9000:9000
+    environment:
+      <<: *common-variables
+    command: server /data
+    networks:
+      - private
+    volumes:
+      - $PWD/data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:minio.docker.localhost"
+      - "traefik.frontend.rule=PathPrefix:/"
+      - "traefik.port=9000"
+  traefik:
+    image: traefik
+    command: --web --docker --docker.domain=docker.localhost --logLevel=INFO --docker.exposedbydefault=false
+    ports:
+      - 80:80
+      - 8080:8080
+    networks:
+      - public
+      - private
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev/null:/traefik.toml
+
+networks:
+  public:
+    ipam:
+      config:
+        - subnet: 172.16.288.0/24
+  private:
+    ipam:
+      config:
+        - subnet: 10.0.288.0/24
