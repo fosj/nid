@@ -23,9 +23,11 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
+    "bluebird": "^3.5.3",
     "chalk": "^2.4.2",
     "convict": "^4.4.1",
     "express": "^4.16.4",
+    "minio": "^7.0.5",
     "winston": "^3.2.1"
   },
   "devDependencies": {

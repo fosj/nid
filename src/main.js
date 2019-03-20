@@ -1,6 +1,7 @@
 const express = require('express');
 const { environment, logger } = require('./config');
 const router = require('./routes');
+const { storage } = require('./dataaccess');
 
 const app = express();
 
@@ -16,6 +17,10 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 
 const listen = async () => {
   try {
+    for (const instance of Object.values(storage)) {
+      await instance.init(); // eslint-disable-line no-await-in-loop
+    }
+
     const port = environment.get('port');
     app.listen(port, () => logger.info(`Server listening on port ${port}`));
   } catch (err) {
