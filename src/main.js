@@ -1,13 +1,10 @@
 const express = require('express');
 const { environment, logger } = require('./config');
+const router = require('./routes');
 
-const port = environment.get('port');
 const app = express();
 
-app.use((req, res, next) => {
-  res.removeHeader('x-powered-by');
-  return next();
-});
+app.use('/', router);
 
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   if (!err.status || err.status === 500) {
@@ -19,6 +16,7 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 
 const listen = async () => {
   try {
+    const port = environment.get('port');
     app.listen(port, () => logger.info(`Server listening on port ${port}`));
   } catch (err) {
     logger.error(err);
