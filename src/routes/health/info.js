@@ -1,8 +1,10 @@
 const { getInfo } = require('../../services/infoService');
 
-function infoHandler(req, res) {
+function get(req, res) {
   return res.status(200)
     .json(getInfo());
 }
 
-module.exports = infoHandler;
+module.exports = {
+  get,
+};

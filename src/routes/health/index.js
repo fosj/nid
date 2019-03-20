@@ -4,7 +4,7 @@ const readiness = require('./readiness');
 
 const router = Router();
 
-router.get('/info', info);
-router.get('/readiness', readiness);
+router.get('/info', info.get);
+router.get('/readiness', readiness.get);
 
 module.exports = router;

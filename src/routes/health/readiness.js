@@ -1,8 +1,10 @@
-function readinessHandler(req, res) {
+function get(req, res) {
   return res.status(200)
     .json({
       status: 'ok',
     });
 }
 
-module.exports = readinessHandler;
+module.exports = {
+  get,
+};

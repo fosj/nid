@@ -1,4 +1,3 @@
-const { Readable } = require('stream');
 const Promise = require('bluebird');
 const StorageErrors = require('./StorageErrors');
 const { logger } = require('../config');
@@ -11,6 +10,7 @@ class Storage {
     this._metadataLoc = props.metadataLoc;
     this.addMetadata = this.addMetadata.bind(this);
     this.init = this.init.bind(this);
+    this.listAll = this.listAll.bind(this);
     this._createLogger(props.name);
   }
 
@@ -92,26 +92,24 @@ class Storage {
     try {
       const client = this._asyncClient;
       const name = `${id}.json`;
+      const metadataObj = { id, ...metadata };
 
       const fileStream = client.listObjects(this._metadataLoc, '', true);
       const matchedFiles = await this._matchItemName(name, fileStream);
       const bucketExists = await client.bucketExistsAsync(id);
 
-      this.logger.debug(JSON.stringify(matchedFiles));
+      this._logger.debug(JSON.stringify(matchedFiles));
 
       if (matchedFiles.length > 1 && bucketExists) {
         throw new StorageErrors.BadRequest(`Metadata exists for id (${id}), use patch/put to update metadata`);
       }
 
-      const writer = new Readable({ objectMode: false });
-      writer.push(JSON.stringify(metadata));
-      writer.push(null);
-
-      this.logger.info(`creating bucket (${id})`);
-      this.logger.debug(JSON.stringify(metadata));
+      this._logger.debug(JSON.stringify(metadataObj));
+      const writeBuffer = Buffer.from(JSON.stringify(metadataObj));
+      this._logger.info(`creating bucket (${id})`);
 
       return Promise.all([
-        client.putObject(this._metadataLoc, name, writer),
+        client.putObject(this._metadataLoc, name, writeBuffer, writeBuffer.length),
         client.makeBucketAsync(id),
       ]);
     } catch (err) {
