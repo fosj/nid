@@ -1,14 +1,19 @@
 const { Router } = require('express');
-const datasets = require('./datasets');
-const dropHeaderMiddleware = require('../middlewares/dropHeaderMiddleware');
+const { constants, routes: { getParameters } } = require('../config');
+const { dropHeaderMiddleware } = require('../middlewares');
+const { storageService } = require('../services');
+const createCommonRoutes = require('./common');
 const health = require('./health');
-const publications = require('./publications');
 
-const router = Router();
+module.exports = () => {
+  const router = Router();
 
-router.use(dropHeaderMiddleware);
-router.use('/datasets', datasets);
-router.use('/health', health);
-router.use('/publications', publications);
+  router.use(dropHeaderMiddleware);
+  router.use('/health', health);
 
-module.exports = router;
+  Object.values(constants)
+    .map(value => ({ ...getParameters(value), service: storageService[value], path: `/${value}` }))
+    .forEach(({ path, ...props }) => router.use(path, createCommonRoutes(props)));
+
+  return router;
+};

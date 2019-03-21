@@ -1,8 +1,6 @@
 const moment = require('moment');
+const { DATASETS, PUBLICATIONS } = require('./constants');
 const environment = require('./environment');
-
-const DATASETS = 'datasets';
-const PUBLICATIONS = 'publications';
 
 const STORAGE = Object.freeze({
   [DATASETS]: {
@@ -38,6 +36,5 @@ const getParameters = kind => STORAGE[kind];
 
 module.exports = {
   getParameters,
-  DATASETS,
-  PUBLICATIONS,
+  STORAGE,
 };

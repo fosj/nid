@@ -1,11 +1,11 @@
 const express = require('express');
 const { environment, logger } = require('./config');
-const errorMiddleware = require('./middlewares/errorMiddleware');
-const router = require('./routes');
+const { errorMiddleware } = require('./middlewares');
+const configureRoutes = require('./routes');
 
 const app = express();
 
-app.use('/', router);
+app.use('/', configureRoutes());
 app.use(errorMiddleware);
 
 const listen = async () => {
