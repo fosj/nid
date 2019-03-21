@@ -8,8 +8,12 @@ const StorageErrors = require('./StorageErrors');
 class Storage {
   constructor({ name, client, metadataFields, metadataParsers }) {
     this._client = new Client({ ...client, useSSL: false });
+    this._name = name;
     this.addMetadata = this.addMetadata.bind(this);
+    this.createEgressStream = this.createEgressStream.bind(this);
+    this.createIngressStream = this.createIngressStream.bind(this);
     this.listAll = this.listAll.bind(this);
+    this.listFiles = this.listFiles.bind(this);
     this._createLogger(name);
     this._createMetadataMethods(metadataFields, metadataParsers);
   }
@@ -40,8 +44,8 @@ class Storage {
         .join('.');
     }
 
-    function nameToMetadata(bucketName) {
-      return zip(fields, bucketName.split('.'))
+    function nameToMetadata(entity) {
+      return zip(fields, entity.split('.'))
         .filter(([field]) => field)
         .reduce((previous, [field, currentValue]) => {
           const parser = parsers.find(({ name }) => name === field);
@@ -62,22 +66,22 @@ class Storage {
   async addMetadata(metadata) {
     try {
       this._logger.debug(JSON.stringify(metadata));
-      const bucketName = this._metadataToName(metadata);
+      const metadataId = this._metadataToName(metadata);
 
-      const bucketExists = await this._client.bucketExists(bucketName);
+      const exists = await this._client.bucketExists(metadataId);
 
-      if (bucketExists) {
-        const bucketMetadata = await this.listAll();
+      if (exists) {
+        const metadataList = await this.listAll();
 
-        if (!bucketMetadata.includes(({ id }) => id === metadata.id)) {
+        if (!metadataList.includes(({ id }) => id === metadata.id)) {
           throw new StorageErrors.BadRequest('Duplicated id values, new id must be unique.');
         }
       }
 
-      this._logger.info(`creating bucket (${bucketName})`);
-      await this._client.makeBucket(bucketName);
+      this._logger.info(`creating bucket (${metadataId})`);
+      await this._client.makeBucket(metadataId);
 
-      return bucketName;
+      return metadataId;
     } catch (err) {
       throw err;
     }
@@ -86,31 +90,42 @@ class Storage {
   async listAll() {
     try {
       const nameToMetadata = this._nameToMetadata;
-      const buckets = await this._client.listBuckets();
+      const entities = await this._client.listBuckets();
 
       this._logger.debug('retrieving metadata');
-      return buckets.map(({ name, creationDate }) => ({ creationDate, ...nameToMetadata(name) }));
+      return entities.map(({ name, creationDate }) => ({
+        creationDate,
+        location: `${this._name}/${name}`,
+        ...nameToMetadata(name),
+      }));
     } catch (err) {
       throw err;
     }
   }
 
-  async listFiles(bucketName) {
+  async listFiles(entity) {
     try {
-      const bucketExists = await this._client.bucketExists(bucketName);
+      const exists = await this._client.bucketExists(entity);
 
-      if (!bucketExists) {
-        throw new StorageErrors.NotFound(`Storage not found (${bucketName})`);
+      if (!exists) {
+        throw new StorageErrors.NotFound(`Storage not found (${entity})`);
       }
 
-      this._logger.debug(`retrieving file list from bucket "${bucketName}"`);
-      const itemStream = this._client.listObjects(bucketName, '', true);
+      this._logger.debug(`retrieving file list from bucket "${entity}"`);
+      const itemStream = this._client.listObjects(entity, '', true);
+
+      const parent = this;
 
       let first = true;
       const toJson = new Transform({
         objectMode: true,
         transform(item, _, callback) {
-          let transformedItem = JSON.stringify({ ...item, etag: undefined });
+          let transformedItem = JSON.stringify({
+            ...item,
+            location: `${parent._name}/${entity}/${item.name}`,
+            etag: undefined,
+          });
+
           if (first) {
             this.push('[');
             first = false;
@@ -137,34 +152,34 @@ class Storage {
     }
   }
 
-  async createIngressStream(bucketName, filename, readStream, size, type) {
+  async createIngressStream(entity, filename, reqStream, size, type) {
     try {
-      this._logger.debug(JSON.stringify({ bucketName, filename, size, type }));
-      const bucketExists = await this._client.bucketExists(bucketName);
+      this._logger.debug(JSON.stringify({ entity, filename, size, type }));
+      const bucketExists = await this._client.bucketExists(entity);
 
       if (!bucketExists) {
-        throw new StorageErrors.NotFound(`Storage not found (${bucketName})`);
+        throw new StorageErrors.NotFound(`Storage not found (${entity})`);
       }
 
-      this._logger.info(`creating object (${bucketName}/${filename})`);
+      this._logger.info(`creating object (${entity}/${filename})`);
 
-      return this._client.putObject(bucketName, filename, readStream, size, { type });
+      return this._client.putObject(entity, filename, reqStream, size, { type });
     } catch (err) {
       throw err;
     }
   }
 
-  async createEgressStream(bucketName, filename) {
+  async createEgressStream(entity, filename) {
     try {
-      this._logger.debug(JSON.stringify({ bucketName, filename }));
-      const bucketExists = await this._client.bucketExists(bucketName);
+      this._logger.debug(JSON.stringify({ entity, filename }));
+      const exists = await this._client.bucketExists(entity);
 
-      if (!bucketExists) {
-        throw new StorageErrors.NotFound(`Storage not found (${bucketName})`);
+      if (!exists) {
+        throw new StorageErrors.NotFound(`Storage not found (${entity})`);
       }
 
       try {
-        return this._client.getObject(bucketName, filename);
+        return this._client.getObject(entity, filename);
       } catch (err) {
         throw new StorageErrors.NotFound(`Object not found (${filename})`);
       }
