@@ -1,6 +1,6 @@
 const { Client } = require('minio');
 const { zip } = require('lodash');
-// const Promise = require('bluebird');
+const { Transform } = require('stream');
 const { logger } = require('../config');
 const StorageErrors = require('./StorageErrors');
 
@@ -62,9 +62,9 @@ class Storage {
   async addMetadata(metadata) {
     try {
       this._logger.debug(JSON.stringify(metadata));
-      const name = this._metadataToName(metadata);
+      const bucketName = this._metadataToName(metadata);
 
-      const bucketExists = await this._client.bucketExists(name);
+      const bucketExists = await this._client.bucketExists(bucketName);
 
       if (bucketExists) {
         const bucketMetadata = await this.listAll();
@@ -74,10 +74,10 @@ class Storage {
         }
       }
 
-      this._logger.info(`creating bucket (${name})`);
-      await this._client.makeBucket(name);
+      this._logger.info(`creating bucket (${bucketName})`);
+      await this._client.makeBucket(bucketName);
 
-      return name;
+      return bucketName;
     } catch (err) {
       throw err;
     }
@@ -95,11 +95,66 @@ class Storage {
     }
   }
 
-  // listFiles(id)) {}
+  async listFiles(bucketName) {
+    try {
+      const bucketExists = await this._client.bucketExists(bucketName);
 
-  // createIngressStream(id, filename) {}
+      if (!bucketExists) {
+        throw new StorageErrors.NotFound(`Storage not found (${bucketName})`);
+      }
 
-  // createEgressStream(id, filename) {}
+      this._logger.debug(`retrieving file list from bucket "${bucketName}"`);
+      const itemStream = this._client.listObjects(bucketName, '', true);
+
+      let first = true;
+      const toJson = new Transform({
+        objectMode: true,
+        transform(item, _, callback) {
+          let transformedItem = JSON.stringify({ ...item, etag: undefined });
+          if (first) {
+            this.push('[');
+            first = false;
+          } else {
+            transformedItem = `, ${transformedItem}`;
+          }
+
+          return callback(null, transformedItem);
+        },
+        flush(callback) {
+          if (first) {
+            return callback(null, '[]');
+          }
+
+          return callback(null, ']');
+        },
+      });
+
+      itemStream.pipe(toJson);
+
+      return toJson;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async createIngressStream(bucketName, filename, readStream, size, type) {
+    try {
+      this._logger.debug(JSON.stringify({ bucketName, filename, size, type }));
+      const bucketExists = await this._client.bucketExists(bucketName);
+
+      if (!bucketExists) {
+        throw new StorageErrors.NotFound(`Storage not found (${bucketName})`);
+      }
+
+      this._logger.info(`creating object (${bucketName}/${filename})`);
+
+      return this._client.putObject(bucketName, filename, readStream, size, { type });
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  // createEgressStream(bucketName, filename) {}
 }
 /* eslint-enable no-underscore-dangle */
 

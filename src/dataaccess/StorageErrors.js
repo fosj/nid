@@ -17,7 +17,14 @@ class InternalError extends ErrorWithStatus {
   }
 }
 
+class NotFound extends ErrorWithStatus {
+  constructor(message) {
+    super(message, 404);
+  }
+}
+
 module.exports = {
   BadRequest,
   InternalError,
+  NotFound,
 };
