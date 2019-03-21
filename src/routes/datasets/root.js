@@ -21,7 +21,7 @@ async function post(req, res) {
     const hostname = req.get('host');
 
     const bucketName = await datasetsService.addMetadata(body);
-    const publishUrl = `${protocol}://${hostname}/datasets/${bucketName}/upload`;
+    const publishUrl = `${protocol}://${hostname}/datasets/${bucketName}/files`;
 
     return res.location(publishUrl)
       .status(200)

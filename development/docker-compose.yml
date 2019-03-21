@@ -5,22 +5,40 @@ x-common-variables: &common-variables
   MINIO_SECRET_KEY: FjI124f5er7PkKFsn0UkkfSd
 
 services:
-  minio:
+  minio-datasets:
     image: minio/minio
     ports:
-      - 9000:9000
+      - 9001:9000
     environment:
       <<: *common-variables
     command: server /data
     networks:
       - private
     volumes:
-      - $PWD/data:/data
+      - $PWD/data/datasets:/data
     labels:
       - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:minio.docker.localhost"
+      - "traefik.frontend.rule=Host:minio-datasets.docker.localhost"
       - "traefik.frontend.rule=PathPrefix:/"
-      - "traefik.port=9000"
+      - "traefik.port=9001"
+
+  minio-publications:
+    image: minio/minio
+    ports:
+      - 9002:9000
+    environment:
+      <<: *common-variables
+    command: server /data
+    networks:
+      - private
+    volumes:
+      - $PWD/data/publications:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:minio-publications.docker.localhost"
+      - "traefik.frontend.rule=PathPrefix:/"
+      - "traefik.port=9002"
+
   traefik:
     image: traefik
     command: --web --docker --docker.domain=docker.localhost --logLevel=INFO --docker.exposedbydefault=false
