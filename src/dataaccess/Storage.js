@@ -1,17 +1,17 @@
-const Promise = require('bluebird');
-const StorageErrors = require('./StorageErrors');
+const { Client } = require('minio');
+const { zip } = require('lodash');
+// const Promise = require('bluebird');
 const { logger } = require('../config');
+const StorageErrors = require('./StorageErrors');
 
 /* eslint-disable no-underscore-dangle */
 class Storage {
-  constructor(props) {
-    this._client = props.client;
-    this._asyncClient = Promise.promisifyAll(props.client);
-    this._metadataLoc = props.metadataLoc;
+  constructor({ name, client, metadataFields, metadataParsers }) {
+    this._client = new Client({ ...client, useSSL: false });
     this.addMetadata = this.addMetadata.bind(this);
-    this.init = this.init.bind(this);
     this.listAll = this.listAll.bind(this);
-    this._createLogger(props.name);
+    this._createLogger(name);
+    this._createMetadataMethods(metadataFields, metadataParsers);
   }
 
   _createLogger(name) {
@@ -25,93 +25,59 @@ class Storage {
     };
   }
 
-  async _countItemStream(itemStream) {
-    return new Promise((resolve, reject) => {
-      let count = 0;
+  _createMetadataMethods(fields, parsers = []) {
+    function metadataToName(metadata) {
+      return fields.map((field) => {
+        const parser = parsers.find(({ name }) => name === field);
+        let value = metadata[field];
 
-      return itemStream
-        .on('data', (item) => {
-          this._logger.debug(JSON.stringify(item));
-          count += 1;
-        })
-        .on('error', err => reject(err))
-        .on('end', () => resolve(count));
-    });
-  }
+        if (parser) {
+          value = parser.toString(value);
+        }
 
-  async _matchItemName(name, itemStream) {
-    return new Promise((resolve, reject) => {
-      const matches = [];
-
-      return itemStream
-        .on('data', (item) => {
-          this._logger.debug(JSON.stringify(item));
-          const { name: currentName } = item;
-          if (currentName === name) {
-            matches.push(item);
-          }
-        })
-        .on('error', err => reject(err))
-        .on('end', () => resolve(matches));
-    });
-  }
-
-  async _collectItems(itemStream) { // eslint-disable-line class-methods-use-this
-    return new Promise((resolve, reject) => {
-      const items = [];
-
-      return itemStream
-        .on('data', item => items.push(item))
-        .on('error', err => reject(err))
-        .on('end', () => resolve(items));
-    });
-  }
-
-  async init() {
-    try {
-      const client = this._asyncClient;
-
-      const exists = await client.bucketExistsAsync(this._metadataLoc);
-
-      if (exists) {
-        this._logger.info(`metadata bucket exists (${this._metadataLoc})`);
-        const fileStream = client.listObjects(this._metadataLoc, '', true);
-        const count = await this._countItemStream(fileStream);
-        this._logger.info(`found ${count} metadata`);
-      } else {
-        this._logger.info(`creating metadata bucket (${this._metadataLoc})`);
-        await client.makeBucketAsync(this._metadataLoc);
-        this._logger.info('successfully created metadata bucket');
-      }
-    } catch (err) {
-      throw err;
+        return value;
+      })
+        .join('.');
     }
+
+    function nameToMetadata(bucketName) {
+      return zip(fields, bucketName.split('.'))
+        .filter(([field]) => field)
+        .reduce((previous, [field, currentValue]) => {
+          const parser = parsers.find(({ name }) => name === field);
+          let value = currentValue;
+
+          if (parser) {
+            value = parser.fromString(value);
+          }
+
+          return Object.assign(previous, { [field]: value });
+        }, {});
+    }
+
+    this._metadataToName = metadataToName;
+    this._nameToMetadata = nameToMetadata;
   }
 
-  async addMetadata(id, metadata) {
+  async addMetadata(metadata) {
     try {
-      const client = this._asyncClient;
-      const name = `${id}.json`;
-      const metadataObj = { id, ...metadata };
+      this._logger.debug(JSON.stringify(metadata));
+      const name = this._metadataToName(metadata);
 
-      const fileStream = client.listObjects(this._metadataLoc, '', true);
-      const matchedFiles = await this._matchItemName(name, fileStream);
-      const bucketExists = await client.bucketExistsAsync(id);
+      const bucketExists = await this._client.bucketExists(name);
 
-      this._logger.debug(JSON.stringify(matchedFiles));
+      if (bucketExists) {
+        const bucketMetadata = await this.listAll();
 
-      if (matchedFiles.length > 1 && bucketExists) {
-        throw new StorageErrors.BadRequest(`Metadata exists for id (${id}), use patch/put to update metadata`);
+        if (!bucketMetadata.includes(({ id }) => id === metadata.id)) {
+          throw new StorageErrors.BadRequest('Duplicated id values, new id must be unique.');
+        }
       }
 
-      this._logger.debug(JSON.stringify(metadataObj));
-      const writeBuffer = Buffer.from(JSON.stringify(metadataObj));
-      this._logger.info(`creating bucket (${id})`);
+      this._logger.info(`creating bucket (${name})`);
+      await this._client.makeBucket(name);
 
-      return Promise.all([
-        client.putObject(this._metadataLoc, name, writeBuffer, writeBuffer.length),
-        client.makeBucketAsync(id),
-      ]);
+      return name;
     } catch (err) {
       throw err;
     }
@@ -119,22 +85,17 @@ class Storage {
 
   async listAll() {
     try {
-      const client = this._asyncClient;
+      const nameToMetadata = this._nameToMetadata;
+      const buckets = await this._client.listBuckets();
 
-      const fileStream = client.listObjects(this._metadataLoc, '', true);
-      const files = await this._collectItems(fileStream);
-
-      return files.map(({ name }) => name);
+      this._logger.debug('retrieving metadata');
+      return buckets.map(({ name, creationDate }) => ({ creationDate, ...nameToMetadata(name) }));
     } catch (err) {
       throw err;
     }
   }
 
-  // listAllForUser(userId) {}
-
-  // getMetadata(id) {}
-
-  // patchMetadata(metadata) {}
+  // listFiles(id)) {}
 
   // createIngressStream(id, filename) {}
 

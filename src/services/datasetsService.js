@@ -1,6 +1,4 @@
-const { minio: { DATASETS } } = require('../config');
-const { storage } = require('../dataaccess');
+const { storage: { DATASETS, getParameters } } = require('../config');
+const { Storage } = require('../dataaccess');
 
-const instance = storage[DATASETS];
-
-module.exports = instance;
+module.exports = new Storage(getParameters(DATASETS));

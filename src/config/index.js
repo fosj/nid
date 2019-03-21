@@ -1,9 +1,9 @@
 const environment = require('./environment');
 const logger = require('./logger');
-const minio = require('./minio');
+const storage = require('./storage');
 
 module.exports = {
   environment,
   logger,
-  minio,
+  storage,
 };

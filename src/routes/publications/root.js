@@ -1,12 +1,12 @@
 const { json } = require('body-parser');
 const { Validator } = require('express-json-validator-middleware');
-const datasetsService = require('../../services/datasetsService');
+const publicationsService = require('../../services/publicationsService');
 
 const validator = new Validator({ allErrors: true });
 
 async function get(req, res) {
   try {
-    const response = await datasetsService.listAll();
+    const response = await publicationsService.listAll();
 
     return res.status(200)
       .json(response);
@@ -20,8 +20,8 @@ async function post(req, res) {
     const { body, protocol } = req;
     const hostname = req.get('host');
 
-    const bucketName = await datasetsService.addMetadata(body);
-    const publishUrl = `${protocol}://${hostname}/datasets/${bucketName}/upload`;
+    const bucketName = await publicationsService.addMetadata(body);
+    const publishUrl = `${protocol}://${hostname}/publish/${bucketName}/upload`;
 
     return res.location(publishUrl)
       .status(200)
@@ -34,19 +34,23 @@ async function post(req, res) {
 const bodyValidator = validator.validate({
   body: {
     type: 'object',
-    required: ['id', 'name'],
+    required: ['user', 'workflowId', 'executionTime'],
     properties: {
-      id: {
+      user: {
         type: 'string',
         pattern: '^[a-z0-9-]+$',
         minLength: 3,
-        maxLength: 30,
+        maxLength: 24,
       },
-      name: {
+      workflowId: {
         type: 'string',
         pattern: '^[a-z0-9-]+$',
         minLength: 3,
-        maxLength: 30,
+        maxLength: 24,
+      },
+      executionTime: {
+        type: 'string',
+        format: 'date-time',
       },
     },
   },
