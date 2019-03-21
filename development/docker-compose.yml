@@ -1,16 +1,46 @@
 version: '3.7'
 
-x-common-variables: &common-variables
-  MINIO_ACCESS_KEY: mpUvdqn4VpkHyo8
-  MINIO_SECRET_KEY: FjI124f5er7PkKFsn0UkkfSd
+x-common-variables:
+  minio: &minio-variables
+    MINIO_ACCESS_KEY: &access-key mpUvdqn4VpkHyo8
+    MINIO_SECRET_KEY: &secret-key FjI124f5er7PkKFsn0UkkfSd
+  nid: &nid-variables
+    DATASETS_MINIO_ACCESS_KEY: *access-key
+    PUBLICATIONS_MINIO_ACCESS_KEY: *access-key
+    DATASETS_MINIO_SECRET_KEY: *secret-key
+    PUBLICATIONS_MINIO_SECRET_KEY: *secret-key
+    DATASETS_MINIO_ENDPOINT: minio-datasets
+    PUBLICATIONS_MINIO_ENDPOINT: minio-publications
+    DATASETS_MINIO_PORT: &port 9000
+    PUBLICATIONS_MINIO_PORT: *port
 
 services:
+  nid:
+    build:
+      context: $PWD/..
+      dockerfile: $PWD/../Dockerfile
+    image: nid
+    ports:
+      - 8000:8000
+    environment:
+      <<: *nid-variables
+    networks:
+      - private
+    links:
+      - minio-datasets
+      - minio-publications
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:nid.docker.localhost"
+      - "traefik.frontend.rule=PathPrefix:/"
+      - "traefik.port=8000"
+
   minio-datasets:
     image: minio/minio
     ports:
       - 9001:9000
     environment:
-      <<: *common-variables
+      <<: *minio-variables
     command: server /data
     networks:
       - private
@@ -27,7 +57,7 @@ services:
     ports:
       - 9002:9000
     environment:
-      <<: *common-variables
+      <<: *minio-variables
     command: server /data
     networks:
       - private
