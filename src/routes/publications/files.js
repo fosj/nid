@@ -13,22 +13,6 @@ async function get(req, res) {
   }
 }
 
-async function post(req, res) {
-  try {
-    const { params: { bucketName, 0: filename } } = req;
-    const size = req.get('content-length');
-    const type = req.get('content-type');
-
-    await publicationsService.createIngressStream(bucketName, filename, req, size, type);
-
-    return res.status(201)
-      .end();
-  } catch (err) {
-    throw err;
-  }
-}
-
 module.exports = {
   get,
-  post,
 };

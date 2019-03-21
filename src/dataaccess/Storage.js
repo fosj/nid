@@ -154,7 +154,24 @@ class Storage {
     }
   }
 
-  // createEgressStream(bucketName, filename) {}
+  async createEgressStream(bucketName, filename) {
+    try {
+      this._logger.debug(JSON.stringify({ bucketName, filename }));
+      const bucketExists = await this._client.bucketExists(bucketName);
+
+      if (!bucketExists) {
+        throw new StorageErrors.NotFound(`Storage not found (${bucketName})`);
+      }
+
+      try {
+        return this._client.getObject(bucketName, filename);
+      } catch (err) {
+        throw new StorageErrors.NotFound(`Object not found (${filename})`);
+      }
+    } catch (err) {
+      throw (err);
+    }
+  }
 }
 /* eslint-enable no-underscore-dangle */
 
