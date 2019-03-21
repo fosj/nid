@@ -12,5 +12,20 @@ module.exports = ({ service }) => {
     }
   }
 
-  return { get };
+  async function deleteMethod(req, res) {
+    try {
+      const { params: { entity } } = req;
+
+      await service.deleteMetadata(entity);
+
+      return res.status(200).end();
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  return {
+    delete: deleteMethod,
+    get,
+  };
 };

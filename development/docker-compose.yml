@@ -16,14 +16,18 @@ x-common-variables:
 
 services:
   nid:
-    build:
-      context: $PWD/..
-      dockerfile: $PWD/../Dockerfile
-    image: nid
+    image: node:10-alpine
     ports:
       - 8000:8000
     environment:
       <<: *nid-variables
+      LOG_LEVEL: info
+    volumes:
+      - $PWD/../:/usr/src/app:ro
+    working_dir: /usr/src/app
+    entrypoint: sh -c
+    command:
+      - yarn watch
     networks:
       - private
     links:

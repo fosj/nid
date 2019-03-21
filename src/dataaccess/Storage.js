@@ -12,6 +12,8 @@ class Storage {
     this.addMetadata = this.addMetadata.bind(this);
     this.createEgressStream = this.createEgressStream.bind(this);
     this.createIngressStream = this.createIngressStream.bind(this);
+    this.deleteFile = this.deleteFile.bind(this);
+    this.deleteMetadata = this.deleteMetadata.bind(this);
     this.listAll = this.listAll.bind(this);
     this.listFiles = this.listFiles.bind(this);
     this._createLogger(name);
@@ -63,6 +65,18 @@ class Storage {
     this._nameToMetadata = nameToMetadata;
   }
 
+  _collectFiles(entity) {
+    const itemStream = this._client.listObjects(entity, '', true);
+
+    return new Promise((resolve, reject) => {
+      const items = [];
+
+      itemStream.on('data', item => items.push(item));
+      itemStream.on('error', err => reject(err));
+      itemStream.on('end', () => resolve(items));
+    });
+  }
+
   async addMetadata(metadata) {
     try {
       this._logger.debug(JSON.stringify(metadata));
@@ -72,8 +86,9 @@ class Storage {
 
       if (exists) {
         const metadataList = await this.listAll();
+        const idExists = metadataList.map(({ id }) => id).includes(metadata.id);
 
-        if (!metadataList.includes(({ id }) => id === metadata.id)) {
+        if (idExists) {
           throw new StorageErrors.BadRequest('Duplicated id values, new id must be unique.');
         }
       }
@@ -82,6 +97,25 @@ class Storage {
       await this._client.makeBucket(metadataId);
 
       return metadataId;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async deleteMetadata(entity) {
+    try {
+      this._logger.debug(JSON.stringify({ entity }));
+      const exists = await this._client.bucketExists(entity);
+
+      if (!exists) {
+        throw new StorageErrors.NotFound(`Storage not found (${entity})`);
+      }
+
+      const files = await this._collectFiles(entity);
+      await Promise.all(files.map(({ name }) => this.deleteFile(entity, name)));
+
+      this._logger.info(`deleting bucket (${entity})`);
+      return this._client.removeBucket(entity);
     } catch (err) {
       throw err;
     }
@@ -152,12 +186,36 @@ class Storage {
     }
   }
 
+  async deleteFile(entity, filename) {
+    try {
+      this._logger.debug(JSON.stringify({ entity, filename }));
+      const entityExists = await this._client.bucketExists(entity);
+
+      if (!entityExists) {
+        throw new StorageErrors.NotFound(`Storage not found (${entity})`);
+      }
+
+      const files = await this._collectFiles(entity);
+      this._logger.debug(JSON.stringify(files));
+      const fileExists = files.map(({ name }) => name).includes(filename);
+
+      if (!fileExists) {
+        throw new StorageErrors.NotFound(`Object not found (${filename})`);
+      }
+
+      this._logger.info(`deleting object (${entity}/${filename})`);
+      return this._client.removeObject(entity, filename);
+    } catch (err) {
+      throw err;
+    }
+  }
+
   async createIngressStream(entity, filename, reqStream, size, type) {
     try {
       this._logger.debug(JSON.stringify({ entity, filename, size, type }));
-      const bucketExists = await this._client.bucketExists(entity);
+      const exists = await this._client.bucketExists(entity);
 
-      if (!bucketExists) {
+      if (!exists) {
         throw new StorageErrors.NotFound(`Storage not found (${entity})`);
       }
 
@@ -178,11 +236,14 @@ class Storage {
         throw new StorageErrors.NotFound(`Storage not found (${entity})`);
       }
 
-      try {
-        return this._client.getObject(entity, filename);
-      } catch (err) {
+      const files = await this._collectFiles(entity);
+      const fileExists = files.map(({ name }) => name).includes(filename);
+
+      if (!fileExists) {
         throw new StorageErrors.NotFound(`Object not found (${filename})`);
       }
+
+      return this._client.getObject(entity, filename);
     } catch (err) {
       throw (err);
     }

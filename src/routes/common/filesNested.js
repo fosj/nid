@@ -27,7 +27,20 @@ module.exports = ({ service }) => {
     }
   }
 
+  async function deleteMethod(req, res) {
+    try {
+      const { params: { entity, 0: filename } } = req;
+
+      await service.deleteFile(entity, filename);
+
+      return res.status(200).end();
+    } catch (err) {
+      throw err;
+    }
+  }
+
   return {
+    delete: deleteMethod,
     get,
     put,
   };

@@ -13,7 +13,9 @@ module.exports = (props) => {
 
   router.get('/', asyncMiddleware(root.get));
   router.post('/', asyncMiddleware(root.post));
+  router.delete('/:entity/', asyncMiddleware(filesPath.delete));
   router.get('/:entity/', asyncMiddleware(filesPath.get));
+  router.delete('/:entity/*', asyncMiddleware(filesNestedPath.delete));
   router.get('/:entity/*', asyncMiddleware(filesNestedPath.get));
   router.put('/:entity/*', asyncMiddleware(filesNestedPath.put));
 
