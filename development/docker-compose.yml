@@ -25,12 +25,6 @@ services:
     environment:
       <<: *nid-variables
       LOG_LEVEL: info
-    volumes:
-      - $PWD/../:/usr/src/app:ro
-    working_dir: /usr/src/app
-    entrypoint: sh -c
-    command:
-      - yarn watch
     networks:
       - private
     links:
@@ -39,7 +33,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:nid.docker.localhost"
-      - traefik.docker.network=public
+      - traefik.docker.network=development_private
       - "traefik.port=8000"
 
   minio-datasets:
@@ -56,7 +50,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:minio-datasets.docker.localhost"
-      - traefik.docker.network=public
+      - traefik.docker.network=development_private
       - "traefik.port=9000"
 
   minio-publications:
@@ -73,7 +67,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:minio-publications.docker.localhost"
-      - traefik.docker.network=public
+      - traefik.docker.network=development_private
       - "traefik.port=9000"
 
   traefik:
@@ -93,8 +87,8 @@ networks:
   public:
     ipam:
       config:
-        - subnet: 172.16.288.0/24
+        - subnet: 172.16.1.0/24
   private:
     ipam:
       config:
-        - subnet: 10.0.288.0/24
+        - subnet: 172.16.2.0/24

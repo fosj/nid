@@ -29,5 +29,5 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:nid.docker.localhost"
-      - traefik.docker.network=public
+      - traefik.docker.network=development_private
       - "traefik.port=8000"
