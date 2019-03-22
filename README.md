@@ -97,3 +97,28 @@ DEL /publications/:entity/  :path/:file -or- /:file
 # Delete repository and all object
 DEL /publications/:entity/
 ```
+
+## Development
+
+Docker-Compose files have been included to run NID as either stand-alone or in
+watch mode. Running the command `docker-compose up` in the development directory
+with build the NID and start two Minio instances in a working mode for direct
+use for integration with other projects.
+
+The watch mode will mount in the `src` directory into the the running container
+this allows for the server to be restarted when code changes are detected. To
+use this first Node 10 will need to be installed and `yarn install` run in the
+root directory to retrieve the required libraries. Next docker-compose can be
+started using
+`docker-compose -f docker-compose.yml -f watch.docker-compose.yml up` this will
+start the NID (in watch mode) and twi Minio instances.
+
+An [Insomnia](https://insomnia.rest/) schema is include in the
+`development/insomnia` directory, which is set up to use the defined routes.
+
+Traefik is set up to act as a reverse proxy and should be configured to work to
+the browser. Once docker-compose is started it can take up-to a minute to detect
+the containers. Minio instances can be accessed via
+`minio-datasets.docker.localhost` and `minio-publications.docker.localhost`, the
+development access-key and secret-key are noted in the docker-compose file. NID
+can also be accessed via the browser at `nid.docker.localhost`.

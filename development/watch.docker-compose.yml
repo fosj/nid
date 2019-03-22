@@ -1,0 +1,33 @@
+version: '3.7'
+
+services:
+  nid:
+    image: node:10-alpine
+    ports:
+      - 8000:8000
+    environment:
+      DATASETS_MINIO_ACCESS_KEY: &access-key mpUvdqn4VpkHyo8
+      PUBLICATIONS_MINIO_ACCESS_KEY: *access-key
+      DATASETS_MINIO_SECRET_KEY: &secret-key FjI124f5er7PkKFsn0UkkfSd
+      PUBLICATIONS_MINIO_SECRET_KEY: *secret-key
+      DATASETS_MINIO_ENDPOINT: minio-datasets
+      PUBLICATIONS_MINIO_ENDPOINT: minio-publications
+      DATASETS_MINIO_PORT: &port 9000
+      PUBLICATIONS_MINIO_PORT: *port
+      LOG_LEVEL: debug
+    volumes:
+      - $PWD/../:/usr/src/app:ro
+    working_dir: /usr/src/app
+    entrypoint: sh -c
+    command:
+      - yarn watch
+    networks:
+      - private
+    links:
+      - minio-datasets
+      - minio-publications
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:nid.docker.localhost"
+      - traefik.docker.network=public
+      - "traefik.port=8000"

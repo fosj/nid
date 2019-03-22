@@ -16,7 +16,10 @@ x-common-variables:
 
 services:
   nid:
-    image: node:10-alpine
+    image: nid
+    build:
+      context: $PWD/../
+      dockerfile: $PWD/../Dockerfile
     ports:
       - 8000:8000
     environment:
@@ -36,7 +39,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:nid.docker.localhost"
-      - "traefik.frontend.rule=PathPrefix:/"
+      - traefik.docker.network=public
       - "traefik.port=8000"
 
   minio-datasets:
@@ -53,8 +56,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:minio-datasets.docker.localhost"
-      - "traefik.frontend.rule=PathPrefix:/"
-      - "traefik.port=9001"
+      - traefik.docker.network=public
+      - "traefik.port=9000"
 
   minio-publications:
     image: minio/minio
@@ -70,8 +73,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:minio-publications.docker.localhost"
-      - "traefik.frontend.rule=PathPrefix:/"
-      - "traefik.port=9002"
+      - traefik.docker.network=public
+      - "traefik.port=9000"
 
   traefik:
     image: traefik
